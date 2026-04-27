@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRM Event Management System</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --srm-blue: #003087;
+    --srm-gold: #FFB800;
+    --srm-light: #e8f0fe;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+  
+  /* NAVBAR */
+  .navbar {
+    background: linear-gradient(135deg, var(--srm-blue) 0%, #001a52 100%);
+    color: white; padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px; position: sticky; top:0; z-index:100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .navbar-brand { display:flex; align-items:center; gap:12px; }
+  .navbar-brand .logo { width:40px; height:40px; background:var(--srm-gold); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; color:var(--srm-blue); }
+  .navbar-brand h1 { font-size:18px; font-weight:700; }
+  .navbar-brand p { font-size:11px; opacity:0.8; }
+  .nav-links { display:flex; gap:4px; }
+  .nav-link { padding:8px 16px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:500; color:rgba(255,255,255,0.85); transition:all 0.2s; border:none; background:transparent; }
+  .nav-link:hover, .nav-link.active { background:rgba(255,255,255,0.15); color:white; }
+  .nav-badge { background:var(--srm-gold); color:var(--srm-blue); font-size:11px; font-weight:700; padding:2px 6px; border-radius:10px; margin-left:4px; }
+
+  /* LAYOUT */
+  .page { display:none; padding:24px; max-width:1200px; margin:0 auto; }
+  .page.active { display:block; }
+
+  /* CARDS */
+  .card { background:var(--card); border-radius:12px; padding:20px; box-shadow:0 1px 4px rgba(0,0,0,0.08); border:1px solid var(--border); }
+  .card-title { font-size:16px; font-weight:600; color:var(--text); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+
+  /* STATS ROW */
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+  .stat-card { background:var(--card); border-radius:12px; padding:20px; border:1px solid var(--border); text-align:center; }
+  .stat-card .num { font-size:36px; font-weight:800; }
+  .stat-card .label { font-size:13px; color:var(--muted); margin-top:4px; }
+  .stat-blue { border-top:4px solid var(--srm-blue); }
+  .stat-gold { border-top:4px solid var(--srm-gold); }
+  .stat-green { border-top:4px solid var(--success); }
+  .stat-red { border-top:4px solid var(--danger); }
+
+  /* GRIDS */
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+  .three-col { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .events-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
+
+  /* EVENT CARD */
+  .event-card {
+    background:var(--card); border-radius:12px; border:1px solid var(--border);
+    overflow:hidden; transition:transform 0.2s, box-shadow 0.2s; cursor:pointer;
+  }
+  .event-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.12); }
+  .event-card-header { padding:16px; color:white; position:relative; }
+  .event-card-header.Technical { background: linear-gradient(135deg,#003087,#0056d2); }
+  .event-card-header.Cultural { background: linear-gradient(135deg,#7c3aed,#a855f7); }
+  .event-card-header.Sports { background: linear-gradient(135deg,#059669,#10b981); }
+  .event-card-header.Workshop { background: linear-gradient(135deg,#d97706,#f59e0b); }
+  .event-card-header.Seminar { background: linear-gradient(135deg,#dc2626,#ef4444); }
+  .event-card-header.Other { background: linear-gradient(135deg,#475569,#64748b); }
+  .event-card-title { font-size:15px; font-weight:700; margin-bottom:4px; }
+  .event-card-cat { font-size:11px; opacity:0.85; text-transform:uppercase; letter-spacing:1px; }
+  .event-card-body { padding:16px; }
+  .event-meta { display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .event-meta span { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:4px; }
+  .capacity-bar { background:#e2e8f0; border-radius:4px; height:6px; margin-bottom:8px; }
+  .capacity-fill { height:100%; border-radius:4px; transition:width 0.5s; }
+  .capacity-text { font-size:11px; color:var(--muted); }
+  .event-actions { display:flex; gap:8px; margin-top:12px; }
+
+  /* BUTTONS */
+  .btn { padding:8px 16px; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; border:none; transition:all 0.2s; display:inline-flex; align-items:center; gap:6px; }
+  .btn-primary { background:var(--srm-blue); color:white; }
+  .btn-primary:hover { background:#002070; }
+  .btn-gold { background:var(--srm-gold); color:var(--srm-blue); }
+  .btn-gold:hover { background:#e6a500; }
+  .btn-success { background:var(--success); color:white; }
+  .btn-success:hover { background:#16a34a; }
+  .btn-danger { background:var(--danger); color:white; }
+  .btn-danger:hover { background:#dc2626; }
+  .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn-outline:hover { background:var(--bg); }
+  .btn-sm { padding:5px 10px; font-size:12px; }
+  .btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+  /* FORM */
+  .form-group { margin-bottom:16px; }
+  .form-label { display:block; font-size:13px; font-weight:500; color:var(--muted); margin-bottom:6px; }
+  .form-control { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; transition:border 0.2s; background:white; }
+  .form-control:focus { outline:none; border-color:var(--srm-blue); box-shadow:0 0 0 3px rgba(0,48,135,0.1); }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .form-error { color:var(--danger); font-size:12px; margin-top:4px; }
+
+  /* MODAL */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:white; border-radius:16px; padding:24px; width:100%; max-width:560px; max-height:90vh; overflow-y:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+  .modal-title { font-size:18px; font-weight:700; }
+  .modal-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); }
+
+  /* TABLE */
+  .table-wrapper { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { background:var(--bg); padding:10px 12px; text-align:left; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+  td { padding:12px; border-top:1px solid var(--border); }
+  tr:hover td { background:#fafafa; }
+
+  /* BADGE */
+  .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+  .badge-blue { background:#dbeafe; color:#1d4ed8; }
+  .badge-green { background:#dcfce7; color:#16a34a; }
+  .badge-purple { background:#ede9fe; color:#7c3aed; }
+  .badge-yellow { background:#fef9c3; color:#a16207; }
+  .badge-red { background:#fee2e2; color:#dc2626; }
+  .badge-gray { background:#f1f5f9; color:#475569; }
+
+  /* ALERTS */
+  .alert { padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:14px; display:flex; align-items:center; gap:8px; }
+  .alert-success { background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; }
+  .alert-error { background:#fee2e2; color:#dc2626; border:1px solid #fecaca; }
+  .alert-info { background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe; }
+
+  /* SEARCH & FILTER */
+  .search-bar { display:flex; gap:12px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
+  .search-input { flex:1; min-width:200px; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px; }
+  .search-input:focus { outline:none; border-color:var(--srm-blue); }
+  select.form-control { cursor:pointer; }
+
+  /* MONITORING */
+  .metric-pill { background:var(--bg); border-radius:8px; padding:12px 16px; text-align:center; }
+  .metric-pill .val { font-size:22px; font-weight:700; color:var(--srm-blue); }
+  .metric-pill .lbl { font-size:11px; color:var(--muted); margin-top:2px; }
+  .metrics-row { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
+  .log-entry { font-size:12px; font-family:monospace; padding:6px 10px; border-radius:6px; margin-bottom:4px; }
+  .log-ok { background:#f0fdf4; color:#166534; }
+  .log-err { background:#fef2f2; color:#991b1b; }
+  .log-warn { background:#fffbeb; color:#92400e; }
+
+  /* STATUS INDICATOR */
+  .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .status-dot.green { background:var(--success); box-shadow:0 0 6px var(--success); }
+  .status-dot.red { background:var(--danger); }
+  .status-dot.yellow { background:var(--warning); }
+
+  /* LOADING */
+  .loading { text-align:center; padding:40px; color:var(--muted); }
+  .spinner { display:inline-block; width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--srm-blue); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* TOAST */
+  #toast { position:fixed; bottom:24px; right:24px; z-index:999; }
+  .toast-msg { background:#1e293b; color:white; padding:12px 20px; border-radius:10px; margin-top:8px; font-size:14px; box-shadow:0 4px 12px rgba(0,0,0,0.2); animation:slideIn 0.3s ease; display:flex; align-items:center; gap:8px; }
+  .toast-msg.success { background:#15803d; }
+  .toast-msg.error { background:#dc2626; }
+  @keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+
+  /* RESPONSIVE */
+  @media (max-width:768px) {
+    .stats-grid { grid-template-columns:repeat(2,1fr); }
+    .two-col, .form-row { grid-template-columns:1fr; }
+    .metrics-row { grid-template-columns:repeat(2,1fr); }
+    .nav-links { gap:2px; }
+    .nav-link { padding:6px 10px; font-size:13px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <div class="logo">SRM</div>
+    <div>
+      <h1>SRM Event Management</h1>
+      <p>SRM Institute of Science and Technology</p>
+    </div>
+  </div>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="showPage('dashboard')">📊 Dashboard</button>
+    <button class="nav-link" onclick="showPage('events')">🎯 Events <span class="nav-badge" id="event-count">0</span></button>
+    <button class="nav-link" onclick="showPage('register')">✍️ Register</button>
+    <button class="nav-link" onclick="showPage('venues')">🏛️ Venues</button>
+    <button class="nav-link" onclick="showPage('monitoring')">📈 Monitoring</button>
+  </div>
+</nav>
+
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════ DASHBOARD ═══════════════════════════════ -->
+<div id="page-dashboard" class="page active">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <div>
+      <h2 style="font-size:22px;font-weight:700;">Welcome to SRM Events Portal</h2>
+      <p style="color:var(--muted);font-size:14px;">Real-time overview of all campus events</p>
+    </div>
+    <div>
+      <span class="status-dot green"></span>
+      <span style="font-size:13px;color:var(--muted);">System Online</span>
+    </div>
+  </div>
+
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card stat-blue"><div class="num" id="stat-events">—</div><div class="label">Total Events</div></div>
+    <div class="stat-card stat-gold"><div class="num" id="stat-regs">—</div><div class="label">Registrations</div></div>
+    <div class="stat-card stat-green"><div class="num" id="stat-upcoming">—</div><div class="label">Upcoming Events</div></div>
+    <div class="stat-card stat-red"><div class="num" id="stat-venues">—</div><div class="label">Venues</div></div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">📊 Events by Category</div>
+      <canvas id="categoryChart" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">🏆 Top Events by Registration</div>
+      <canvas id="topEventsChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title">🔥 Recent Events</div>
+    <div class="events-grid" id="recent-events"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ EVENTS ═══════════════════════════════════ -->
+<div id="page-events" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h2 style="font-size:22px;font-weight:700;">All Events</h2>
+    <button class="btn btn-primary" onclick="openEventModal()">➕ Add Event</button>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" class="search-input" id="event-search" placeholder="🔍 Search events..." oninput="filterEvents()">
+    <select class="form-control" style="width:160px;" id="cat-filter" onchange="filterEvents()">
+      <option value="">All Categories</option>
+      <option>Technical</option><option>Cultural</option><option>Sports</option>
+      <option>Workshop</option><option>Seminar</option><option>Other</option>
+    </select>
+    <select class="form-control" style="width:140px;" id="status-filter" onchange="filterEvents()">
+      <option value="">All Status</option>
+      <option>upcoming</option><option>ongoing</option><option>completed</option>
+    </select>
+  </div>
+
+  <div class="events-grid" id="events-list"><div class="loading"><div class="spinner"></div><p style="margin-top:12px;">Loading events...</p></div></div>
+</div>
+
+<!-- ═══════════════════════════════ REGISTER ═════════════════════════════════ -->
+<div id="page-register" class="page">
+  <h2 style="font-size:22px;font-weight:700;margin-bottom:20px;">Event Registration</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+    <div class="card">
+      <div class="card-title">📝 Register for an Event</div>
+      <div id="reg-alert"></div>
+      <div class="form-group">
+        <label class="form-label">Select Event *</label>
+        <select class="form-control" id="reg-event">
+          <option value="">-- Choose an event --</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" class="form-control" id="reg-name" placeholder="Your full name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email *</label>
+          <input type="email" class="form-control" id="reg-email" placeholder="your@srmist.edu.in">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Registration No.</label>
+          <input type="text" class="form-control" id="reg-regno" placeholder="RA2111003010001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <select class="form-control" id="reg-dept">
+            <option value="">Select</option>
+            <option>CSE</option><option>ECE</option><option>EEE</option><option>MECH</option>
+            <option>IT</option><option>CIVIL</option><option>AIDS</option><option>AIML</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Year of Study</label>
+        <select class="form-control" id="reg-year">
+          <option value="">Select</option>
+          <option value="1">1st Year</option><option value="2">2nd Year</option>
+          <option value="3">3rd Year</option><option value="4">4th Year</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="submitRegistration()">Register Now →</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 Recent Registrations</div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Student</th><th>Event</th><th>Time</th></tr></thead>
+          <tbody id="reg-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ VENUES ═══════════════════════════════════ -->
+<div id="page-venues" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h2 style="font-size:22px;font-weight:700;">Venue Management</h2>
+    <button class="btn btn-primary" onclick="openVenueModal()">➕ Add Venue</button>
+  </div>
+  <div class="three-col" id="venues-list"></div>
+</div>
+
+<!-- ═══════════════════════════════ MONITORING ══════════════════════════════ -->
+<div id="page-monitoring" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h2 style="font-size:22px;font-weight:700;">System Monitoring & Observability</h2>
+    <div>
+      <span class="status-dot green"></span>
+      <span style="font-size:13px;color:var(--muted);" id="health-status">Checking...</span>
+      <button class="btn btn-outline btn-sm" style="margin-left:12px;" onclick="loadMonitoring()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <div class="metrics-row" id="perf-metrics"></div>
+
+  <div class="two-col" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">📡 HTTP Status Distribution</div>
+      <canvas id="statusChart" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">⚡ Response Time Distribution</div>
+      <canvas id="rtChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">🔝 Top Endpoints (Request Count)</div>
+      <canvas id="endpointChart" height="220"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">📜 Live Request Log</div>
+      <div id="request-log" style="max-height:260px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODALS ════════════════ -->
+<!-- Event Modal -->
+<div class="modal-overlay" id="event-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="event-modal-title">Add New Event</h3>
+      <button class="modal-close" onclick="closeModal('event-modal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Event Title *</label>
+      <input type="text" class="form-control" id="ev-title" placeholder="e.g. SRM Hackathon 2025">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Category *</label>
+        <select class="form-control" id="ev-cat">
+          <option>Technical</option><option>Cultural</option><option>Sports</option>
+          <option>Workshop</option><option>Seminar</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-control" id="ev-status">
+          <option value="upcoming">Upcoming</option>
+          <option value="ongoing">Ongoing</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Date *</label>
+        <input type="date" class="form-control" id="ev-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time</label>
+        <input type="time" class="form-control" id="ev-time">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Capacity *</label>
+        <input type="number" class="form-control" id="ev-capacity" placeholder="200" min="1" max="10000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Organizer</label>
+        <input type="text" class="form-control" id="ev-organizer" placeholder="CSE Department">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-control" id="ev-desc" rows="3" placeholder="Event description..."></textarea>
+    </div>
+    <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-outline" onclick="closeModal('event-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEvent()">Save Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- Venue Modal -->
+<div class="modal-overlay" id="venue-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Add New Venue</h3>
+      <button class="modal-close" onclick="closeModal('venue-modal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Venue Name *</label>
+      <input type="text" class="form-control" id="vn-name" placeholder="e.g. Tech Park Auditorium">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Location</label>
+      <input type="text" class="form-control" id="vn-loc" placeholder="e.g. Main Campus Block A">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Capacity</label>
+      <input type="number" class="form-control" id="vn-cap" placeholder="500" min="1">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Facilities</label>
+      <input type="text" class="form-control" id="vn-fac" placeholder="Projector, AC, WiFi, Stage">
+    </div>
+    <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-outline" onclick="closeModal('venue-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveVenue()">Save Venue</button>
+    </div>
+  </div>
+</div>
+
+<!-- Registration Detail Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="detail-title">Event Details</h3>
+      <button class="modal-close" onclick="closeModal('detail-modal')">✕</button>
+    </div>
+    <div id="detail-body"></div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let allEvents = [], allVenues = [], editingEventId = null;
+let categoryChart, topEventsChart, statusChart, rtChart, endpointChart;
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'events') loadEvents();
+  if (name === 'register') { loadEventsForSelect(); loadRegistrations(); }
+  if (name === 'venues') loadVenues();
+  if (name === 'monitoring') loadMonitoring();
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  const el = document.createElement('div');
+  el.className = `toast-msg ${type}`;
+  el.innerHTML = (type==='success'?'✅ ':type==='error'?'❌ ':'ℹ️ ') + msg;
+  t.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ─── API HELPER ───────────────────────────────────────────────────────────
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.detail || 'Request failed');
+  return data;
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const m = await api('/api/metrics');
+    const db = m.database;
+    document.getElementById('stat-events').textContent = db.total_events;
+    document.getElementById('stat-regs').textContent = db.total_registrations;
+    document.getElementById('stat-upcoming').textContent = db.upcoming_events;
+    document.getElementById('stat-venues').textContent = db.total_venues;
+    document.getElementById('event-count').textContent = db.total_events;
+
+    // Category chart
+    if (categoryChart) categoryChart.destroy();
+    const cats = db.events_by_category;
+    categoryChart = new Chart(document.getElementById('categoryChart'), {
+      type: 'doughnut',
+      data: {
+        labels: cats.map(c => c.category),
+        datasets: [{ data: cats.map(c => c.count),
+          backgroundColor: ['#003087','#7c3aed','#059669','#d97706','#dc2626','#475569'],
+          borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { responsive:true, plugins: { legend: { position:'right' } } }
+    });
+
+    // Top events chart
+    if (topEventsChart) topEventsChart.destroy();
+    const top = db.top_events;
+    topEventsChart = new Chart(document.getElementById('topEventsChart'), {
+      type: 'bar',
+      data: {
+        labels: top.map(e => e.title.length > 20 ? e.title.substring(0,20)+'…' : e.title),
+        datasets: [
+          { label:'Registered', data: top.map(e => e.registered), backgroundColor:'#003087' },
+          { label:'Capacity', data: top.map(e => e.capacity), backgroundColor:'#e2e8f0' }
+        ]
+      },
+      options: { responsive:true, scales: { y: { beginAtZero:true } }, plugins: { legend: { position:'top' } } }
+    });
+
+    // Recent events
+    const events = await api('/api/events?limit=6');
+    allEvents = events;
+    document.getElementById('recent-events').innerHTML = events.slice(0,6).map(renderEventCard).join('');
+  } catch(e) { toast('Failed to load dashboard: ' + e.message, 'error'); }
+}
+
+// ─── EVENT CARD ───────────────────────────────────────────────────────────
+function renderEventCard(ev) {
+  const pct = ev.capacity > 0 ? Math.min(100, (ev.registered_count / ev.capacity) * 100) : 0;
+  const color = pct >= 95 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';
+  const cat = ev.category || 'Other';
+  return `
+  <div class="event-card" onclick="showEventDetail(${ev.id})">
+    <div class="event-card-header ${cat}">
+      <div class="event-card-title">${ev.title}</div>
+      <div class="event-card-cat">${cat}</div>
+    </div>
+    <div class="event-card-body">
+      <div class="event-meta">
+        <span>📅 ${ev.date}</span>
+        <span>⏰ ${ev.time || 'TBD'}</span>
+        <span>👥 ${ev.registered_count}/${ev.capacity}</span>
+      </div>
+      <div class="capacity-bar"><div class="capacity-fill" style="width:${pct}%;background:${color};"></div></div>
+      <div class="capacity-text">${pct.toFixed(0)}% full ${ev.organizer ? '• ' + ev.organizer : ''}</div>
+      <div class="event-actions">
+        <span class="badge ${getBadgeClass(ev.status)}">${ev.status}</span>
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openEditModal(${ev.id})">✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteEvent(${ev.id})">🗑️</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function getBadgeClass(status) {
+  return {upcoming:'badge-blue',ongoing:'badge-green',completed:'badge-gray'}[status] || 'badge-gray';
+}
+
+// ─── EVENTS PAGE ──────────────────────────────────────────────────────────
+async function loadEvents() {
+  try {
+    allEvents = await api('/api/events');
+    document.getElementById('event-count').textContent = allEvents.length;
+    renderFilteredEvents();
+  } catch(e) { toast('Failed to load events', 'error'); }
+}
+
+function filterEvents() {
+  renderFilteredEvents();
+}
+
+function renderFilteredEvents() {
+  const search = (document.getElementById('event-search')?.value || '').toLowerCase();
+  const cat = document.getElementById('cat-filter')?.value || '';
+  const status = document.getElementById('status-filter')?.value || '';
+  let filtered = allEvents.filter(ev => {
+    const matchSearch = !search || ev.title.toLowerCase().includes(search) || (ev.organizer||'').toLowerCase().includes(search);
+    const matchCat = !cat || ev.category === cat;
+    const matchStatus = !status || ev.status === status;
+    return matchSearch && matchCat && matchStatus;
+  });
+  const container = document.getElementById('events-list');
+  container.innerHTML = filtered.length ? filtered.map(renderEventCard).join('') :
+    '<div class="loading"><p>No events found matching your filters.</p></div>';
+}
+
+// ─── EVENT CRUD ───────────────────────────────────────────────────────────
+function openEventModal() {
+  editingEventId = null;
+  document.getElementById('event-modal-title').textContent = 'Add New Event';
+  ['ev-title','ev-desc','ev-organizer','ev-date','ev-time'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('ev-capacity').value = '100';
+  document.getElementById('ev-cat').value = 'Technical';
+  document.getElementById('ev-status').value = 'upcoming';
+  openModal('event-modal');
+}
+
+function openEditModal(id) {
+  const ev = allEvents.find(e => e.id === id);
+  if (!ev) return;
+  editingEventId = id;
+  document.getElementById('event-modal-title').textContent = 'Edit Event';
+  document.getElementById('ev-title').value = ev.title;
+  document.getElementById('ev-desc').value = ev.description || '';
+  document.getElementById('ev-cat').value = ev.category;
+  document.getElementById('ev-status').value = ev.status;
+  document.getElementById('ev-date').value = ev.date;
+  document.getElementById('ev-time').value = ev.time || '';
+  document.getElementById('ev-capacity').value = ev.capacity;
+  document.getElementById('ev-organizer').value = ev.organizer || '';
+  openModal('event-modal');
+}
+
+async function saveEvent() {
+  const body = {
+    title: document.getElementById('ev-title').value.trim(),
+    description: document.getElementById('ev-desc').value.trim(),
+    category: document.getElementById('ev-cat').value,
+    status: document.getElementById('ev-status').value,
+    date: document.getElementById('ev-date').value,
+    time: document.getElementById('ev-time').value,
+    capacity: parseInt(document.getElementById('ev-capacity').value) || 100,
+    organizer: document.getElementById('ev-organizer').value.trim(),
+  };
+  if (!body.title || !body.date) { toast('Title and date are required', 'error'); return; }
+  try {
+    if (editingEventId) {
+      await api(`/api/events/${editingEventId}`, 'PUT', body);
+      toast('Event updated!', 'success');
+    } else {
+      await api('/api/events', 'POST', body);
+      toast('Event created!', 'success');
+    }
+    closeModal('event-modal');
+    loadEvents();
+    loadDashboard();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteEvent(id) {
+  if (!confirm('Delete this event?')) return;
+  try {
+    await api(`/api/events/${id}`, 'DELETE');
+    toast('Event deleted', 'success');
+    loadEvents();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function showEventDetail(id) {
+  const ev = allEvents.find(e => e.id === id);
+  if (!ev) return;
+  const pct = ev.capacity > 0 ? Math.min(100, (ev.registered_count / ev.capacity) * 100) : 0;
+  document.getElementById('detail-title').textContent = ev.title;
+  document.getElementById('detail-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div><strong>Category:</strong> ${ev.category}</div>
+      <div><strong>Status:</strong> <span class="badge ${getBadgeClass(ev.status)}">${ev.status}</span></div>
+      <div><strong>Date:</strong> ${ev.date}</div>
+      <div><strong>Time:</strong> ${ev.time || 'TBD'}</div>
+      <div><strong>Organizer:</strong> ${ev.organizer || '—'}</div>
+      <div><strong>Capacity:</strong> ${ev.capacity}</div>
+    </div>
+    <p style="margin-bottom:16px;color:var(--muted);font-size:14px;">${ev.description || 'No description.'}</p>
+    <div class="capacity-bar" style="margin-bottom:6px;"><div class="capacity-fill" style="width:${pct}%;background:${pct>=95?'#ef4444':pct>=70?'#f59e0b':'#22c55e'};"></div></div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">${ev.registered_count} / ${ev.capacity} registered (${pct.toFixed(0)}%)</div>
+    <button class="btn btn-primary" onclick="closeModal('detail-modal');showPage('register')">Register for this Event</button>
+  `;
+  openModal('detail-modal');
+}
+
+// ─── REGISTRATION ─────────────────────────────────────────────────────────
+async function loadEventsForSelect() {
+  const events = await api('/api/events');
+  allEvents = events;
+  const sel = document.getElementById('reg-event');
+  sel.innerHTML = '<option value="">-- Choose an event --</option>' +
+    events.filter(e => e.status !== 'completed').map(e =>
+      `<option value="${e.id}">${e.title} (${e.registered_count}/${e.capacity})</option>`
+    ).join('');
+}
+
+async function loadRegistrations() {
+  try {
+    const regs = await api('/api/registrations');
+    const tbody = document.getElementById('reg-table');
+    if (!regs.length) { tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center;">No registrations yet</td></tr>'; return; }
+    tbody.innerHTML = regs.slice(-10).reverse().map(r => {
+      const ev = allEvents.find(e => e.id === r.event_id);
+      return `<tr>
+        <td><strong>${r.student_name}</strong><br><span style="font-size:11px;color:var(--muted);">${r.student_email}</span></td>
+        <td>${ev ? ev.title.substring(0,25)+'…' : 'Event #'+r.event_id}</td>
+        <td style="font-size:11px;color:var(--muted);">${new Date(r.registered_at).toLocaleDateString()}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function submitRegistration() {
+  const eventId = parseInt(document.getElementById('reg-event').value);
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const regNo = document.getElementById('reg-regno').value.trim();
+  const dept = document.getElementById('reg-dept').value;
+  const year = parseInt(document.getElementById('reg-year').value) || null;
+  const alertDiv = document.getElementById('reg-alert');
+
+  if (!eventId || !name || !email) {
+    alertDiv.innerHTML = '<div class="alert alert-error">⚠️ Please fill in all required fields.</div>';
+    return;
+  }
+
+  try {
+    await api('/api/registrations', 'POST', { event_id:eventId, student_name:name, student_email:email, student_reg_no:regNo, department:dept, year });
+    alertDiv.innerHTML = `<div class="alert alert-success">🎉 Successfully registered for the event!</div>`;
+    ['reg-name','reg-email','reg-regno'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('reg-event').value = '';
+    loadEventsForSelect();
+    loadRegistrations();
+    toast('Registration successful!', 'success');
+    setTimeout(() => alertDiv.innerHTML = '', 4000);
+  } catch(e) {
+    alertDiv.innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+  }
+}
+
+// ─── VENUES ───────────────────────────────────────────────────────────────
+async function loadVenues() {
+  try {
+    allVenues = await api('/api/venues');
+    const container = document.getElementById('venues-list');
+    container.innerHTML = allVenues.map(v => `
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <div style="width:42px;height:42px;background:var(--srm-light);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">🏛️</div>
+          <div><strong>${v.name}</strong><br><span style="font-size:12px;color:var(--muted);">${v.location}</span></div>
+        </div>
+        <div style="display:flex;gap:16px;font-size:13px;color:var(--muted);margin-bottom:10px;">
+          <span>👥 Capacity: <strong>${v.capacity}</strong></span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">${v.facilities || ''}</div>
+      </div>
+    `).join('');
+  } catch(e) { toast('Failed to load venues', 'error'); }
+}
+
+function openVenueModal() { openModal('venue-modal'); }
+
+async function saveVenue() {
+  const body = {
+    name: document.getElementById('vn-name').value.trim(),
+    location: document.getElementById('vn-loc').value.trim(),
+    capacity: parseInt(document.getElementById('vn-cap').value) || 100,
+    facilities: document.getElementById('vn-fac').value.trim()
+  };
+  if (!body.name) { toast('Venue name is required', 'error'); return; }
+  try {
+    await api('/api/venues', 'POST', body);
+    toast('Venue added!', 'success');
+    closeModal('venue-modal');
+    loadVenues();
+    ['vn-name','vn-loc','vn-cap','vn-fac'].forEach(id => document.getElementById(id).value = '');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ─── MONITORING ───────────────────────────────────────────────────────────
+async function loadMonitoring() {
+  try {
+    const [metrics, health, perf] = await Promise.all([
+      api('/api/metrics'),
+      api('/health'),
+      api('/api/metrics/performance')
+    ]);
+    const sys = metrics.system;
+    const db = metrics.database;
+
+    document.getElementById('health-status').textContent = `API ${health.status} • Uptime: ${formatUptime(sys.uptime_seconds)}`;
+
+    document.getElementById('perf-metrics').innerHTML = [
+      { val: sys.total_requests, lbl: 'Total Requests' },
+      { val: sys.avg_response_ms + 'ms', lbl: 'Avg Response' },
+      { val: sys.max_response_ms + 'ms', lbl: 'Max Response' },
+      { val: sys.error_rate_percent + '%', lbl: 'Error Rate' },
+      { val: db.total_events, lbl: 'Active Events' }
+    ].map(m => `<div class="metric-pill"><div class="val">${m.val}</div><div class="lbl">${m.lbl}</div></div>`).join('');
+
+    // Status distribution chart
+    if (statusChart) statusChart.destroy();
+    const statuses = sys.status_distribution;
+    statusChart = new Chart(document.getElementById('statusChart'), {
+      type: 'pie',
+      data: {
+        labels: Object.keys(statuses),
+        datasets: [{ data: Object.values(statuses),
+          backgroundColor: ['#22c55e','#3b82f6','#f59e0b','#ef4444'],
+          borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { responsive:true, plugins:{ legend:{ position:'right' } } }
+    });
+
+    // Response time distribution
+    if (rtChart) rtChart.destroy();
+    const rt = perf.response_time_distribution;
+    rtChart = new Chart(document.getElementById('rtChart'), {
+      type: 'bar',
+      data: {
+        labels: Object.keys(rt),
+        datasets: [{ label:'Requests', data: Object.values(rt),
+          backgroundColor: ['#22c55e','#3b82f6','#f59e0b','#ef4444'] }]
+      },
+      options: { responsive:true, scales:{ y:{ beginAtZero:true } }, plugins:{ legend:{ display:false } } }
+    });
+
+    // Endpoint chart
+    if (endpointChart) endpointChart.destroy();
+    const eps = sys.top_endpoints;
+    endpointChart = new Chart(document.getElementById('endpointChart'), {
+      type: 'horizontalBar',
+      data: {
+        labels: Object.keys(eps).map(k => k.substring(0,35)),
+        datasets: [{ label:'Requests', data: Object.values(eps), backgroundColor: '#003087' }]
+      },
+      options: { indexAxis:'y', responsive:true, plugins:{ legend:{ display:false } }, scales:{ x:{ beginAtZero:true } } }
+    });
+
+    // Log
+    const logs = await api('/api/metrics/requests');
+    const logDiv = document.getElementById('request-log');
+    logDiv.innerHTML = logs.reverse().map(l => {
+      const cls = l.status >= 500 ? 'log-err' : l.status >= 400 ? 'log-warn' : 'log-ok';
+      return `<div class="log-entry ${cls}">[${l.status}] ${l.path} — ${l.duration_ms}ms</div>`;
+    }).join('') || '<p style="color:var(--muted);font-size:13px;padding:8px;">No requests logged yet</p>';
+
+  } catch(e) { toast('Monitoring error: ' + e.message, 'error'); }
+}
+
+function formatUptime(s) {
+  if (s < 60) return s + 's';
+  if (s < 3600) return Math.floor(s/60) + 'm ' + (s%60) + 's';
+  return Math.floor(s/3600) + 'h ' + Math.floor((s%3600)/60) + 'm';
+}
+
+// ─── MODAL HELPERS ────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => {
+  if (e.target === m) m.classList.remove('open');
+}));
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
+loadDashboard();
+</script>
+</body>
+</html>
